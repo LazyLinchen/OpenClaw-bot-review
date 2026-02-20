@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useI18n, LanguageSwitcher } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 
 interface Skill {
   id: string;
@@ -88,7 +88,6 @@ export default function SkillsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <LanguageSwitcher />
           <Link
             href="/"
             className="px-4 py-2 rounded-lg bg-[var(--card)] border border-[var(--border)] text-sm font-medium hover:border-[var(--accent)] transition"

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useI18n, LanguageSwitcher } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 
 interface DayStat {
   date: string;
@@ -293,7 +293,6 @@ export default function StatsPage() {
           >
             {t("stats.home")}
           </Link>
-          <LanguageSwitcher />
         </div>
       </div>
 

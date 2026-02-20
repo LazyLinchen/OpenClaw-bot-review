@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useI18n, LanguageSwitcher } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 
 interface Model {
   id: string;
@@ -168,7 +168,6 @@ export default function ModelsPage() {
           >
             {t("common.backOverview")}
           </Link>
-          <LanguageSwitcher />
         </div>
       </div>
 

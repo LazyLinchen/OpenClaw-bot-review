@@ -10,6 +10,16 @@ const translations: Record<Locale, Record<string, string>> = {
     "site.title": "OpenClaw Bot Dashboard",
     "site.desc": "查看所有 OpenClaw 机器人配置",
 
+    // nav sidebar
+    "nav.overview": "总览",
+    "nav.agents": "机器人",
+    "nav.models": "模型列表",
+    "nav.monitor": "监控",
+    "nav.sessions": "会话列表",
+    "nav.stats": "消息统计",
+    "nav.config": "配置",
+    "nav.skills": "技能管理",
+
     // common
     "common.loading": "加载中...",
     "common.loadError": "加载失败",
@@ -33,6 +43,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "home.defaultModel": "默认模型",
     "home.viewModels": "查看模型列表 →",
     "home.skillMgmt": "🧩 技能管理",
+    "home.testAll": "🧪 测试全部",
+    "home.testingAll": "⏳ 测试中...",
+    "home.testOk": "正常",
+    "home.testFail": "异常",
     "home.updatedAt": "更新于",
     "home.refreshManual": "🔄 手动刷新",
     "home.globalTrend": "📊 全局统计趋势",
@@ -140,6 +154,16 @@ const translations: Record<Locale, Record<string, string>> = {
     "site.title": "OpenClaw Bot Dashboard",
     "site.desc": "View all OpenClaw bot configurations",
 
+    // nav sidebar
+    "nav.overview": "Overview",
+    "nav.agents": "Agents",
+    "nav.models": "Models",
+    "nav.monitor": "Monitor",
+    "nav.sessions": "Sessions",
+    "nav.stats": "Statistics",
+    "nav.config": "Config",
+    "nav.skills": "Skills",
+
     // common
     "common.loading": "Loading...",
     "common.loadError": "Failed to load",
@@ -163,6 +187,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "home.defaultModel": "Default model",
     "home.viewModels": "View Models →",
     "home.skillMgmt": "🧩 Skills",
+    "home.testAll": "🧪 Test All",
+    "home.testingAll": "⏳ Testing...",
+    "home.testOk": "OK",
+    "home.testFail": "Failed",
     "home.updatedAt": "Updated at",
     "home.refreshManual": "🔄 Manual Refresh",
     "home.globalTrend": "📊 Global Statistics",

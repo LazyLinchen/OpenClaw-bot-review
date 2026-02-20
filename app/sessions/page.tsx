@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useI18n, LanguageSwitcher } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 
 interface Session {
   key: string;
@@ -115,7 +115,6 @@ export default function SessionsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <LanguageSwitcher />
           <Link
             href="/"
             className="px-4 py-2 rounded-lg bg-[var(--card)] border border-[var(--border)] text-sm hover:border-[var(--accent)] transition"

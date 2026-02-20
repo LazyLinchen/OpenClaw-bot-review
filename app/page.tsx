@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import Link from "next/link";
-import { useI18n, LanguageSwitcher } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 
 interface Platform {
   name: string;
@@ -222,7 +221,7 @@ function ModelBadge({ model }: { model: string }) {
 }
 
 // Agent 卡片
-function AgentCard({ agent, gatewayPort, gatewayToken, t }: { agent: Agent; gatewayPort: number; gatewayToken?: string; t: TFunc }) {
+function AgentCard({ agent, gatewayPort, gatewayToken, t, testResult }: { agent: Agent; gatewayPort: number; gatewayToken?: string; t: TFunc; testResult?: { ok: boolean; text?: string; error?: string; elapsed: number } | null }) {
   const sessionKey = `agent:${agent.id}:main`;
   let sessionUrl = `http://localhost:${gatewayPort}/chat?session=${encodeURIComponent(sessionKey)}`;
   if (gatewayToken) sessionUrl += `&token=${encodeURIComponent(gatewayToken)}`;
@@ -310,6 +309,23 @@ function AgentCard({ agent, gatewayPort, gatewayToken, t }: { agent: Agent; gate
             )}
           </div>
         )}
+
+        {testResult && (
+          <div className={`mt-2 p-2 rounded-lg text-xs ${testResult.ok ? "bg-green-500/10 border border-green-500/30" : "bg-red-500/10 border border-red-500/30"}`}>
+            <div className="flex items-center justify-between">
+              <span className={testResult.ok ? "text-green-400" : "text-red-400"}>
+                {testResult.ok ? `✅ ${t("home.testOk")}` : `❌ ${t("home.testFail")}`}
+              </span>
+              <span className="text-[var(--text-muted)]">{testResult.elapsed}ms</span>
+            </div>
+            {testResult.ok && testResult.text && (
+              <p className="text-[var(--text-muted)] mt-1 truncate">{testResult.text}</p>
+            )}
+            {!testResult.ok && testResult.error && (
+              <p className="text-red-400/80 mt-1 truncate">{testResult.error}</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -325,6 +341,8 @@ export default function Home() {
   const [allStats, setAllStats] = useState<AllStats | null>(null);
   const [statsRange, setStatsRange] = useState<TimeRange>("daily");
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; text?: string; error?: string; elapsed: number }> | null>(null);
+  const [testing, setTesting] = useState(false);
 
   const RANGE_LABELS: Record<TimeRange, string> = { daily: t("range.daily"), weekly: t("range.weekly"), monthly: t("range.monthly") };
 
@@ -356,6 +374,22 @@ export default function Home() {
   // 首次加载
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const testAllAgents = useCallback(() => {
+    setTesting(true);
+    setTestResults(null);
+    fetch("/api/test-agents", { method: "POST" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.results) {
+          const map: Record<string, { ok: boolean; text?: string; error?: string; elapsed: number }> = {};
+          for (const r of data.results) map[r.agentId] = r;
+          setTestResults(map);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setTesting(false));
+  }, []);
+
   // 定时刷新
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -382,12 +416,12 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen p-8 max-w-6xl mx-auto">
+    <div className="p-8 max-w-6xl mx-auto">
       {/* 头部 */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            {t("home.title")}
+            🤖 {t("nav.agents")}
           </h1>
           <p className="text-[var(--text-muted)] text-sm mt-1">
             {t("models.totalPrefix")} {data.agents.length} {t("home.agentCount")} · {t("home.defaultModel")}: {data.defaults.model}
@@ -422,26 +456,20 @@ export default function Home() {
               {t("home.updatedAt")} {lastUpdated}
             </span>
           )}
-          <Link
-            href="/models"
-            className="px-4 py-2 rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium hover:opacity-90 transition"
+          <button
+            onClick={testAllAgents}
+            disabled={testing}
+            className="px-4 py-2 rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
           >
-            {t("home.viewModels")}
-          </Link>
-          <Link
-            href="/skills"
-            className="px-4 py-2 rounded-lg bg-[var(--card)] border border-[var(--border)] text-sm font-medium hover:border-[var(--accent)] transition"
-          >
-            {t("home.skillMgmt")}
-          </Link>
-          <LanguageSwitcher />
+            {testing ? t("home.testingAll") : t("home.testAll")}
+          </button>
         </div>
       </div>
 
       {/* 卡片墙 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {data.agents.map((agent) => (
-          <AgentCard key={agent.id} agent={agent} gatewayPort={data.gateway?.port || 18789} gatewayToken={data.gateway?.token} t={t} />
+          <AgentCard key={agent.id} agent={agent} gatewayPort={data.gateway?.port || 18789} gatewayToken={data.gateway?.token} t={t} testResult={testResults?.[agent.id]} />
         ))}
       </div>
 
@@ -546,6 +574,6 @@ export default function Home() {
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }
