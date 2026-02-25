@@ -58,6 +58,7 @@ export const FURNITURE_CATALOG: CatalogEntryWithCategory[] = [
   { type: FurnitureType.PC,         label: 'PC',         footprintW: 1, footprintH: 1, sprite: PC_SPRITE,           isDesk: false, category: 'electronics', emoji: '💻', canPlaceOnSurfaces: true },
   { type: FurnitureType.PC_BACK,    label: 'PC Back',    footprintW: 1, footprintH: 1, sprite: PC_BACK_SPRITE,      isDesk: false, category: 'electronics' },
   { type: FurnitureType.CAMERA,     label: 'Camera',     footprintW: 1, footprintH: 1, sprite: [],                  isDesk: false, category: 'electronics', emoji: '📷', canPlaceOnSurfaces: true },
+  { type: FurnitureType.PHONE,      label: 'Phone',      footprintW: 1, footprintH: 1, sprite: [],                  isDesk: false, category: 'electronics', emoji: '📱', canPlaceOnSurfaces: true, emojiScale: 0.67 },
   { type: FurnitureType.LAMP,       label: 'Lamp',       footprintW: 1, footprintH: 1, sprite: LAMP_SPRITE,         isDesk: false, category: 'decor' },
 
   // ── Tileset — Desks ──

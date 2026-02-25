@@ -74,7 +74,7 @@ export function layoutToFurnitureInstances(furniture: PlacedFurniture[]): Furnit
       sprite = getColorizedSprite(`furn-${item.type}-${h}-${s}-${bv}-${cv}-${item.color.colorize ? 1 : 0}`, entry.sprite, item.color)
     }
 
-    instances.push({ sprite, x, y, zY, ...(entry.emoji ? { emoji: entry.emoji } : {}), ...(item.rotation ? { rotation: item.rotation } : {}) })
+    instances.push({ sprite, x, y, zY, ...(entry.emoji ? { emoji: entry.emoji } : {}), ...(item.rotation ? { rotation: item.rotation } : {}), ...(entry.emojiScale ? { emojiScale: entry.emojiScale } : {}) })
   }
   return instances
 }
@@ -296,6 +296,7 @@ export function createDefaultLayout(): OfficeLayout {
     { uid: 'pc-l2', type: FurnitureType.PC, col: 6.5, row: 2.75, rotation: 180 },
     { uid: 'pc-l3', type: FurnitureType.PC, col: 3.5, row: 5.5 },
     { uid: 'pc-l4', type: FurnitureType.PC, col: 6.5, row: 5.5 },
+    { uid: 'phone-l', type: FurnitureType.PHONE, col: 7.17, row: 5.75 },
 
     // ── Right work room ──
     { uid: 'desk-r1', type: FurnitureType.DESK, col: 13, row: 3 },

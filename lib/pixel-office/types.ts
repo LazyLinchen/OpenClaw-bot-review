@@ -75,6 +75,8 @@ export interface FurnitureInstance {
   emoji?: string
   /** Rotation in degrees for emoji rendering */
   rotation?: number
+  /** Scale factor for emoji rendering (default 1.0) */
+  emojiScale?: number
 }
 
 export interface ToolActivity {
@@ -114,6 +116,7 @@ export const FurnitureType = {
   PAINTING_SMALL_1: 'ts_painting_small_1',
   PAINTING_SMALL_2: 'ts_painting_small_2',
   PAINTING_SMALL_3: 'ts_painting_small_3',
+  PHONE: 'phone',
 } as const
 export type FurnitureType = (typeof FurnitureType)[keyof typeof FurnitureType]
 
@@ -139,6 +142,7 @@ export interface FurnitureCatalogEntry {
   orientation?: string
   canPlaceOnSurfaces?: boolean
   emoji?: string
+  emojiScale?: number
   backgroundTiles?: number
   canPlaceOnWalls?: boolean
 }

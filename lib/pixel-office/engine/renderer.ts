@@ -201,7 +201,8 @@ export function renderScene(
       drawables.push({
         zY: f.zY,
         draw: (c) => {
-          c.font = `${emojiSize * 0.7}px serif`
+          const scale = f.emojiScale ?? 1
+          c.font = `${emojiSize * 0.7 * scale}px serif`
           c.textAlign = 'center'
           c.textBaseline = 'middle'
           if (f.rotation) {
