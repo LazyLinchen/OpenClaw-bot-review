@@ -47,7 +47,7 @@ export function Sidebar() {
           {collapsed ? (
             <div className="flex flex-col items-center gap-2">
               <Link href="/">
-                <span className="text-xl">🐾</span>
+                <span className="text-3xl">🦞</span>
               </Link>
               <button
                 onClick={() => setCollapsed(false)}
@@ -61,7 +61,7 @@ export function Sidebar() {
             <div>
               <div className="flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-2">
-                  <span className="text-xl">🐾</span>
+                  <span className="text-3xl">🦞</span>
                   <div>
                     <div className="text-sm font-bold text-[var(--text)] tracking-wide">OPENCLAW</div>
                     <div className="text-[10px] text-[var(--text-muted)] tracking-wider">BOT DASHBOARD</div>
