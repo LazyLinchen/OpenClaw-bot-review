@@ -236,6 +236,13 @@ export function renderScene(
   const laptopUpwardSpinRad = -Math.PI / 12
   const laptopTiltScaleY = Math.max(0.22, Math.abs(Math.cos(laptopXTiltRad)))
   const laptopTiltSkewX = -Math.sin(laptopXTiltRad) * 0.35
+  const visibleSubagentStoolIds = new Set<string>()
+  for (const ch of characters) {
+    if (!ch.isSubagent || ch.state !== CharacterState.TYPE || !ch.seatId) continue
+    if (!ch.seatId.startsWith('stool-r')) continue
+    if (ch.matrixEffect === 'despawn') continue
+    visibleSubagentStoolIds.add(ch.seatId)
+  }
 
   // Wall decorations as z-sorted drawables (zY just above row 0 walls so they render on top of walls but below characters)
   const wallDecoZY = TILE_SIZE + 0.5
@@ -252,6 +259,9 @@ export function renderScene(
 
   // Furniture
   for (const f of furniture) {
+    if (f.uid?.startsWith('stool-r') && !visibleSubagentStoolIds.has(f.uid)) {
+      continue
+    }
     const fx = offsetX + f.x * zoom
     const fy = offsetY + f.y * zoom
     if (f.emoji) {

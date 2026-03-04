@@ -64,6 +64,7 @@ export interface Seat {
 }
 
 export interface FurnitureInstance {
+  uid?: string
   sprite: SpriteData
   /** Pixel x (top-left) */
   x: number

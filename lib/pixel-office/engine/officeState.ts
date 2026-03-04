@@ -706,12 +706,13 @@ export class OfficeState {
       Math.abs(c - parentCol) + Math.abs(r - parentRow)
 
     let bestSeatId: string | null = null
-    for (const seatId of SUBAGENT_PRIORITY_SEAT_IDS) {
+    const availablePrioritySeats = SUBAGENT_PRIORITY_SEAT_IDS.filter((seatId) => {
       const seat = this.seats.get(seatId)
-      if (seat && !seat.assigned) {
-        bestSeatId = seatId
-        break
-      }
+      return !!seat && !seat.assigned
+    })
+    if (availablePrioritySeats.length > 0) {
+      const randomIdx = Math.floor(Math.random() * availablePrioritySeats.length)
+      bestSeatId = availablePrioritySeats[randomIdx]
     }
     if (!bestSeatId) {
       let bestDist = Infinity
