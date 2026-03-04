@@ -91,61 +91,50 @@ export default function ModelsPage() {
 
   const testAllModels = async () => {
     if (!data) return;
-    const providerModels: Record<string, string[]> = {};
+    const modelTargets: Array<{ providerId: string; modelId: string; key: string }> = [];
+    const seen = new Set<string>();
+
     for (const p of data.providers) {
-      if (p.models.length > 0) {
-        providerModels[p.id] = Array.from(new Set(p.models.map((m) => m.id)));
-      } else {
-        const knownModels = Object.values(modelStats).filter(s => s.provider === p.id);
-        providerModels[p.id] = Array.from(new Set(knownModels.map((s) => s.modelId)));
+      const modelIds = p.models.length > 0
+        ? Array.from(new Set(p.models.map((m) => m.id)))
+        : Array.from(new Set(Object.values(modelStats).filter(s => s.provider === p.id).map((s) => s.modelId)));
+      for (const modelId of modelIds) {
+        const key = `${p.id}/${modelId}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        modelTargets.push({ providerId: p.id, modelId, key });
       }
     }
 
+    if (modelTargets.length === 0) return;
+
+    setTesting((prev) => {
+      const next = { ...prev };
+      for (const t of modelTargets) next[t.key] = true;
+      return next;
+    });
+    setTestResults((prev) => {
+      const next = { ...prev };
+      for (const t of modelTargets) delete next[t.key];
+      return next;
+    });
+
     await Promise.all(
-      Object.entries(providerModels)
-        .filter(([, modelIds]) => modelIds.length > 0)
-        .map(async ([providerId, modelIds]) => {
-          const keys = modelIds.map((id) => `${providerId}/${id}`);
-          const probeModelId = modelIds[0];
-
-          setTesting((prev) => {
-            const next = { ...prev };
-            for (const key of keys) next[key] = true;
-            return next;
+      modelTargets.map(async ({ providerId, modelId, key }) => {
+        try {
+          const resp = await fetch("/api/test-model", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ provider: providerId, modelId }),
           });
-          setTestResults((prev) => {
-            const next = { ...prev };
-            for (const key of keys) delete next[key];
-            return next;
-          });
-
-          try {
-            const resp = await fetch("/api/test-model", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ provider: providerId, modelId: probeModelId }),
-            });
-            const result = await resp.json();
-            setTestResults((prev) => {
-              const next = { ...prev };
-              for (const key of keys) next[key] = result;
-              return next;
-            });
-          } catch (err: any) {
-            const result = { ok: false, error: err.message, elapsed: 0 };
-            setTestResults((prev) => {
-              const next = { ...prev };
-              for (const key of keys) next[key] = result;
-              return next;
-            });
-          } finally {
-            setTesting((prev) => {
-              const next = { ...prev };
-              for (const key of keys) next[key] = false;
-              return next;
-            });
-          }
-        })
+          const result = await resp.json();
+          setTestResults((prev) => ({ ...prev, [key]: result }));
+        } catch (err: any) {
+          setTestResults((prev) => ({ ...prev, [key]: { ok: false, error: err.message, elapsed: 0 } }));
+        } finally {
+          setTesting((prev) => ({ ...prev, [key]: false }));
+        }
+      })
     );
   };
 

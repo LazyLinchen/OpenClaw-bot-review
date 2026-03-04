@@ -24,6 +24,13 @@ import { loadCharacterPNGs, loadWallPNG } from '@/lib/pixel-office/sprites/pngLo
 import { useI18n } from '@/lib/i18n'
 import { EditorToolbar } from './components/EditorToolbar'
 import { EditActionBar } from './components/EditActionBar'
+import {
+  AgentCard,
+  type AgentCardAgent,
+  type AgentModelTestResult,
+  type AgentSessionTestResult,
+  type PlatformTestResult,
+} from '../components/agent-card'
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
@@ -54,6 +61,8 @@ type AgentStats = {
   weeklyTokens: number[]
   lastActive: number | null
 }
+
+type ConfigAgentCard = AgentCardAgent
 
 function MiniSparkline({ data, width = 120, height = 24, color: fixedColor }: { data: number[]; width?: number; height?: number; color?: string }) {
   const hasData = data.some(v => v > 0)
@@ -211,6 +220,7 @@ export default function PixelOfficePage() {
   const [hoveredAgentId, setHoveredAgentId] = useState<number | null>(null)
   const mousePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
   const agentStatsRef = useRef<Map<string, AgentStats>>(new Map())
+  const configAgentsRef = useRef<Map<string, ConfigAgentCard>>(new Map())
   const contributionsRef = useRef<ContributionData | null>(null)
   const photographRef = useRef<HTMLImageElement | null>(null)
   const gatewayRef = useRef<{ port: number; token?: string; host?: string }>({ port: 18789 })
@@ -224,6 +234,7 @@ export default function PixelOfficePage() {
   const gatewayDownStreakRef = useRef(0)
   const gatewayDegradedStreakRef = useRef(0)
   const gatewayHealthyStreakRef = useRef(0)
+  const providerAccessModeRef = useRef<Record<string, 'auth' | 'api_key'>>({})
   const providersRef = useRef<Array<{ id: string; api: string; models: Array<{ id: string; name: string; contextWindow?: number }>; usedBy: Array<{ id: string; emoji: string; name: string }> }>>([])
   const [isEditMode, setIsEditMode] = useState(cachedIsEditMode)
   const [soundOn, setSoundOn] = useState(true)
@@ -241,6 +252,10 @@ export default function PixelOfficePage() {
   const [versionLoading, setVersionLoading] = useState(false)
   const [versionLoadFailed, setVersionLoadFailed] = useState(false)
   const [showIdleRank, setShowIdleRank] = useState(false)
+  const [cachedModelTestResults, setCachedModelTestResults] = useState<Record<string, AgentModelTestResult | null> | null>(null)
+  const [cachedPlatformTestResults, setCachedPlatformTestResults] = useState<Record<string, PlatformTestResult | null> | null>(null)
+  const [cachedSessionTestResults, setCachedSessionTestResults] = useState<Record<string, AgentSessionTestResult | null> | null>(null)
+  const [cachedDmSessionResults, setCachedDmSessionResults] = useState<Record<string, PlatformTestResult | null> | null>(null)
   const selectedAgentOpenedAtRef = useRef(0)
   const tokenRankOpenedAtRef = useRef(0)
   const modelPanelOpenedAtRef = useRef(0)
@@ -742,7 +757,16 @@ export default function PixelOfficePage() {
         const res = await fetch('/api/config')
         const data = await res.json()
         const map = new Map<string, { sessionCount: number; messageCount: number; totalTokens: number; todayAvgResponseMs: number; weeklyResponseMs: number[]; weeklyTokens: number[]; lastActive: number | null }>()
+        const configMap = new Map<string, ConfigAgentCard>()
         for (const agent of (data.agents || [])) {
+          configMap.set(agent.id, {
+            id: agent.id,
+            name: agent.name || agent.id,
+            emoji: agent.emoji || '🤖',
+            model: agent.model || '',
+            platforms: Array.isArray(agent.platforms) ? agent.platforms : [],
+            session: agent.session || undefined,
+          })
           if (agent.session) {
             map.set(agent.id, {
               sessionCount: agent.session.sessionCount || 0,
@@ -756,8 +780,18 @@ export default function PixelOfficePage() {
           }
         }
         agentStatsRef.current = map
+        configAgentsRef.current = configMap
         if (data.gateway) gatewayRef.current = { port: data.gateway.port || 18789, token: data.gateway.token, host: data.gateway.host }
-        if (data.providers) providersRef.current = data.providers
+        if (data.providers) {
+          providersRef.current = data.providers
+          const accessModeMap: Record<string, 'auth' | 'api_key'> = {}
+          for (const provider of data.providers) {
+            if (provider?.id && (provider.accessMode === 'auth' || provider.accessMode === 'api_key')) {
+              accessModeMap[provider.id] = provider.accessMode
+            }
+          }
+          providerAccessModeRef.current = accessModeMap
+        }
       } catch {}
     }
     fetchStats()
@@ -771,6 +805,34 @@ export default function PixelOfficePage() {
     const interval = setInterval(refreshGatewayHealthSnapshot, GATEWAY_HEALTH_POLL_INTERVAL_MS)
     return () => clearInterval(interval)
   }, [refreshGatewayHealthSnapshot])
+
+  useEffect(() => {
+    if (!selectedAgentId) return
+    try {
+      const modelRaw = localStorage.getItem('agentTestResults')
+      setCachedModelTestResults(modelRaw ? JSON.parse(modelRaw) : null)
+    } catch {
+      setCachedModelTestResults(null)
+    }
+    try {
+      const platformRaw = localStorage.getItem('platformTestResults')
+      setCachedPlatformTestResults(platformRaw ? JSON.parse(platformRaw) : null)
+    } catch {
+      setCachedPlatformTestResults(null)
+    }
+    try {
+      const sessionRaw = localStorage.getItem('sessionTestResults')
+      setCachedSessionTestResults(sessionRaw ? JSON.parse(sessionRaw) : null)
+    } catch {
+      setCachedSessionTestResults(null)
+    }
+    try {
+      const dmRaw = localStorage.getItem('dmSessionResults')
+      setCachedDmSessionResults(dmRaw ? JSON.parse(dmRaw) : null)
+    } catch {
+      setCachedDmSessionResults(null)
+    }
+  }, [selectedAgentId])
 
   // Keep gateway SRE head label aligned with current locale.
   useEffect(() => {
@@ -1786,13 +1848,34 @@ export default function PixelOfficePage() {
 
         {/* Agent detail card (click) */}
         {selectedAgentId && !isEditMode && (() => {
-          const agent = agents.find(a => a.agentId === selectedAgentId)
-          const stats = agentStatsRef.current.get(selectedAgentId)
-          if (!agent) return null
-          const responseColor = stats?.todayAvgResponseMs
-            ? stats.todayAvgResponseMs > 50000 ? 'text-red-400'
-            : stats.todayAvgResponseMs > 30000 ? 'text-yellow-400'
-            : 'text-green-400' : 'text-[var(--text-muted)]'
+          const runtimeAgent = agents.find(a => a.agentId === selectedAgentId)
+          const configAgent = configAgentsRef.current.get(selectedAgentId)
+          const stats = agentStatsRef.current.get(selectedAgentId) ?? configAgent?.session
+          const displayState = runtimeAgent?.state || 'offline'
+          const gw = gatewayRef.current
+
+          if (!runtimeAgent && !configAgent) return null
+
+          const cardAgent: AgentCardAgent = {
+            id: selectedAgentId,
+            name: configAgent?.name || runtimeAgent?.name || selectedAgentId,
+            emoji: configAgent?.emoji || runtimeAgent?.emoji || '🤖',
+            model: configAgent?.model || '',
+            platforms: configAgent?.platforms || [],
+            session: stats
+              ? {
+                  lastActive: stats.lastActive,
+                  totalTokens: stats.totalTokens,
+                  contextTokens: 0,
+                  sessionCount: stats.sessionCount,
+                  todayAvgResponseMs: stats.todayAvgResponseMs,
+                  messageCount: stats.messageCount,
+                  weeklyResponseMs: stats.weeklyResponseMs,
+                  weeklyTokens: stats.weeklyTokens,
+                }
+              : undefined,
+          }
+
           return (
             <div
               className={modalOverlayClass}
@@ -1801,27 +1884,23 @@ export default function PixelOfficePage() {
                 setSelectedAgentId(null)
               }}
             >
-              <div className={modalPanelClass("w-72", "max-h-[78%]")} onClick={e => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">{agent.emoji}</span>
-                    <div>
-                      <div className="font-semibold text-[var(--text)]">{agent.name}</div>
-                      <span className={`text-[10px] uppercase tracking-wider ${
-                        agent.state === 'working' ? 'text-green-400' :
-                        agent.state === 'idle' ? 'text-yellow-400' : 'text-slate-400'
-                      }`}>{t(`pixelOffice.state.${agent.state}`)}</span>
-                    </div>
-                  </div>
+              <div className={modalPanelClass("w-[24rem]", "max-h-[78%]")} onClick={e => e.stopPropagation()}>
+                <div className="flex justify-end mb-2">
                   <button onClick={() => setSelectedAgentId(null)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-lg leading-none">×</button>
                 </div>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('agent.sessionCount')}</span><span className="text-[var(--text)]">{stats?.sessionCount ?? '--'}</span></div>
-                  <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('agent.messageCount')}</span><span className="text-[var(--text)]">{stats?.messageCount ?? '--'}</span></div>
-                  <div className="flex justify-between items-center"><span className="text-[var(--text-muted)]">{t('agent.tokenUsage')}</span><div className="flex items-center gap-2">{stats?.weeklyTokens && <MiniSparkline data={stats.weeklyTokens} color="#4ade80" />}<span className="text-[var(--text)]">{stats ? formatTokens(stats.totalTokens) : '--'}</span></div></div>
-                  <div className="flex justify-between items-center"><span className="text-[var(--text-muted)]">{t('agent.todayAvgResponse')}</span><div className="flex items-center gap-2">{stats?.weeklyResponseMs && <MiniSparkline data={stats.weeklyResponseMs} />}<span className={responseColor}>{stats?.todayAvgResponseMs ? formatMs(stats.todayAvgResponseMs) : '--'}</span></div></div>
-                  {stats?.lastActive && <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('agent.lastActive')}</span><span className="text-[var(--text)]">{new Date(stats.lastActive).toLocaleString('zh-CN')}</span></div>}
-                </div>
+                <AgentCard
+                  agent={cardAgent}
+                  gatewayPort={gw.port}
+                  gatewayToken={gw.token}
+                  gatewayHost={gw.host}
+                  t={t}
+                  testResult={cachedModelTestResults?.[selectedAgentId]}
+                  platformTestResults={cachedPlatformTestResults || undefined}
+                  sessionTestResult={cachedSessionTestResults?.[selectedAgentId]}
+                  agentState={displayState}
+                  dmSessionResults={cachedDmSessionResults || undefined}
+                  providerAccessModeMap={providerAccessModeRef.current}
+                />
               </div>
             </div>
           )

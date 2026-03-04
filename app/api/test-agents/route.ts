@@ -1,123 +1,91 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
-import { execFile } from "child_process";
-import { promisify } from "util";
+import { DEFAULT_MODEL_PROBE_TIMEOUT_MS, parseModelRef, probeModel } from "@/lib/model-probe";
 
-const execFileAsync = promisify(execFile);
 const OPENCLAW_HOME = process.env.OPENCLAW_HOME || path.join(process.env.HOME || "", ".openclaw");
 const CONFIG_PATH = path.join(OPENCLAW_HOME, "openclaw.json");
+const PROBE_TIMEOUT_MS = DEFAULT_MODEL_PROBE_TIMEOUT_MS;
 
-interface ProbeResult {
-  provider?: string;
+type AgentConfig = {
+  id: string;
   model?: string;
-  mode?: "api_key" | "oauth" | string;
-  status?: "ok" | "error" | "unknown" | string;
-  error?: string;
-  latencyMs?: number;
-}
+};
 
-function parseModelRef(modelStr: string) {
-  const [providerId, ...rest] = modelStr.split("/");
-  return { providerId, modelId: rest.join("/") };
-}
+function loadAgentList(config: any): AgentConfig[] {
+  let agentList: AgentConfig[] = config?.agents?.list || [];
+  if (agentList.length > 0) return agentList;
 
-function parseJsonFromMixedOutput(output: string): any {
-  for (let i = 0; i < output.length; i++) {
-    if (output[i] !== "{") continue;
-    let depth = 0;
-    let inString = false;
-    let escaped = false;
-    for (let j = i; j < output.length; j++) {
-      const ch = output[j];
-      if (inString) {
-        if (escaped) escaped = false;
-        else if (ch === "\\") escaped = true;
-        else if (ch === "\"") inString = false;
-        continue;
-      }
-      if (ch === "\"") {
-        inString = true;
-        continue;
-      }
-      if (ch === "{") depth++;
-      else if (ch === "}") {
-        depth--;
-        if (depth === 0) {
-          const candidate = output.slice(i, j + 1).trim();
-          try {
-            const parsed = JSON.parse(candidate);
-            if (parsed && typeof parsed === "object") return parsed;
-          } catch {}
-          break;
-        }
-      }
-    }
-  }
-  throw new Error("Failed to parse JSON output from openclaw models status --probe --json");
+  try {
+    const agentsDir = path.join(OPENCLAW_HOME, "agents");
+    const dirs = fs.readdirSync(agentsDir, { withFileTypes: true });
+    agentList = dirs
+      .filter((d) => d.isDirectory() && !d.name.startsWith("."))
+      .map((d) => ({ id: d.name }));
+  } catch {}
+
+  if (agentList.length === 0) return [{ id: "main" }];
+  return agentList;
 }
 
 export async function POST() {
   try {
     const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
     const config = JSON.parse(raw);
-
-    const defaults = config.agents?.defaults || {};
+    const defaults = config?.agents?.defaults || {};
     const defaultModel = typeof defaults.model === "string"
       ? defaults.model
       : defaults.model?.primary || "unknown";
 
-    let agentList = config.agents?.list || [];
-    if (agentList.length === 0) {
-      try {
-        const agentsDir = path.join(OPENCLAW_HOME, "agents");
-        const dirs = fs.readdirSync(agentsDir, { withFileTypes: true });
-        agentList = dirs
-          .filter((d: any) => d.isDirectory() && !d.name.startsWith("."))
-          .map((d: any) => ({ id: d.name }));
-      } catch {}
-      if (agentList.length === 0) agentList = [{ id: "main" }];
-    }
+    const agentList = loadAgentList(config);
+    const modelProbeTasks = new Map<string, Promise<Awaited<ReturnType<typeof probeModel>>>>();
 
-    const { stdout, stderr } = await execFileAsync(
-      "openclaw",
-      ["models", "status", "--probe", "--json"],
-      {
-        maxBuffer: 10 * 1024 * 1024,
-        env: { ...process.env, FORCE_COLOR: "0" },
-      }
-    );
-    const parsed = parseJsonFromMixedOutput(`${stdout}\n${stderr || ""}`);
-    const probes: ProbeResult[] = parsed?.auth?.probes?.results || [];
-
-    const results = agentList.map((agent: any) => {
+    for (const agent of agentList) {
       const modelStr = agent.model || defaultModel;
       const { providerId, modelId } = parseModelRef(modelStr);
-      const fullModel = `${providerId}/${modelId}`;
+      const key = `${providerId}/${modelId}`;
+      if (!modelProbeTasks.has(key)) {
+        modelProbeTasks.set(
+          key,
+          probeModel({ providerId, modelId, timeoutMs: PROBE_TIMEOUT_MS })
+        );
+      }
+    }
 
-      const exact =
-        probes.find((p) => p.provider === providerId && p.model === fullModel) ||
-        probes.find((p) => p.provider === providerId && typeof p.model === "string" && p.model.endsWith(`/${modelId}`));
-      const matched = exact || probes.find((p) => p.provider === providerId);
+    const modelProbeResults = new Map<string, Awaited<ReturnType<typeof probeModel>>>();
+    for (const [key, task] of modelProbeTasks.entries()) {
+      modelProbeResults.set(key, await task);
+    }
 
-      if (!matched) {
+    const results = agentList.map((agent) => {
+      const modelStr = agent.model || defaultModel;
+      const { providerId, modelId } = parseModelRef(modelStr);
+      const key = `${providerId}/${modelId}`;
+      const probe = modelProbeResults.get(key);
+      if (!probe) {
         return {
           agentId: agent.id,
           model: modelStr,
           ok: false,
-          error: `No probe result for provider ${providerId}`,
+          error: `No probe result for model ${key}`,
           elapsed: 0,
+          status: "unknown",
+          mode: "unknown",
+          precision: "provider",
+          source: "openclaw_provider_probe",
         };
       }
-
-      const ok = matched.status === "ok";
       return {
         agentId: agent.id,
         model: modelStr,
-        ok,
-        text: ok ? "OK (openclaw models status --probe)" : undefined,
-        error: ok ? undefined : (matched.error || `Probe status: ${matched.status || "unknown"}`),
-        elapsed: matched.latencyMs || 0,
+        ok: probe.ok,
+        text: probe.text,
+        error: probe.error,
+        elapsed: probe.elapsed,
+        status: probe.status,
+        mode: probe.mode,
+        precision: probe.precision,
+        source: probe.source,
       };
     });
 
@@ -130,3 +98,4 @@ export async function POST() {
 export async function GET() {
   return POST();
 }
+
