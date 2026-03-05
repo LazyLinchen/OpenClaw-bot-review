@@ -39,6 +39,8 @@ This dashboard reads your local OpenClaw configuration and session data, providi
 
 ## Getting Started
 
+See [Quick Start Guide](quick_start.md) for prompt/git/skill startup options.
+
 ```bash
 # Clone the repo
 git clone https://github.com/xmanrui/OpenClaw-bot-review.git
@@ -132,6 +134,8 @@ docker run -d --name openclaw-dashboard -p 3000:3000 -e OPENCLAW_HOME=/opt/openc
 ![像素办公室](docs/pixel-office.png)
 
 ## 快速开始
+
+更多启动方式请见：[快速启动文档](quick_start.md)。
 
 ```bash
 # 克隆仓库
