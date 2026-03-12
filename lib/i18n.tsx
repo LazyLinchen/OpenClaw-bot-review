@@ -238,6 +238,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "skills.noDesc": "無描述",
     "skills.source.builtin": "內建",
     "skills.source.custom": "自訂",
+    "skills.viewSource": "查看 SKILL.md",
+    "skills.contentTitle": "SKILL.md 內容",
+    "skills.loadingContent": "正在載入技能內容...",
+    "skills.contentLoadFailed": "技能內容載入失敗",
 
     // gateway status
     "gateway.healthy": "Gateway 運作正常",
@@ -520,6 +524,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "skills.noDesc": "无描述",
     "skills.source.builtin": "内置",
     "skills.source.custom": "自定义",
+    "skills.viewSource": "查看 SKILL.md",
+    "skills.contentTitle": "SKILL.md 内容",
+    "skills.loadingContent": "正在加载技能内容...",
+    "skills.contentLoadFailed": "技能内容加载失败",
 
     // gateway status
     "gateway.healthy": "Gateway 运行正常",
@@ -802,6 +810,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "skills.noDesc": "No description",
     "skills.source.builtin": "Built-in",
     "skills.source.custom": "Custom",
+    "skills.viewSource": "View SKILL.md",
+    "skills.contentTitle": "SKILL.md",
+    "skills.loadingContent": "Loading skill content...",
+    "skills.contentLoadFailed": "Failed to load skill content",
 
     // gateway status
     "gateway.healthy": "Gateway is running",
